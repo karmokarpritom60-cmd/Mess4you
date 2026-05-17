@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChefHat, Eye, EyeOff } from 'lucide-react';
+import { ChefHat, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -37,8 +37,12 @@ export const LoginPage: React.FC = () => {
       showToast('Login successful!', 'success');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Login failed';
-      setErrors({ general: message });
-      showToast(message, 'error');
+      const errorMsg = message.includes('auth/user-not-found') ? 'Email not registered' :
+                      message.includes('auth/wrong-password') ? 'Incorrect password' :
+                      message.includes('auth/invalid-email') ? 'Invalid email address' :
+                      message.includes('auth/user-disabled') ? 'Account has been disabled' : message;
+      setErrors({ general: errorMsg });
+      showToast(errorMsg, 'error');
     } finally {
       setLoading(false);
     }
@@ -46,14 +50,15 @@ export const LoginPage: React.FC = () => {
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resetEmail) return;
+    if (!resetEmail || !/\S+@\S+\.\S+/.test(resetEmail)) { showToast('Enter a valid email', 'warning'); return; }
     setResetLoading(true);
     try {
       await resetPassword(resetEmail);
-      showToast('Password reset email sent!', 'success');
+      showToast('Password reset email sent! Check your inbox.', 'success');
       setShowReset(false);
+      setResetEmail('');
     } catch {
-      showToast('Could not send reset email', 'error');
+      showToast('Email not found or error sending reset email', 'error');
     } finally {
       setResetLoading(false);
     }
@@ -72,7 +77,13 @@ export const LoginPage: React.FC = () => {
 
         {!showReset ? (
           <form onSubmit={handleLogin} className="bg-white rounded-3xl shadow-xl shadow-gray-100 p-7 space-y-5 border border-gray-50">
-            <h2 className="text-xl font-bold text-gray-900">Welcome back</h2>
+            <h2 className="text-xl font-bold text-gray-900">Login to your account</h2>
+
+            <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex gap-3">
+              <AlertCircle size={16} className="text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-blue-700"><strong>First time?</strong> Contact your admin to create your account.</div>
+            </div>
+
             <Input label="Email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} error={errors.email} autoComplete="email" />
             <div className="relative">
               <Input label="Password" type={showPassword ? 'text' : 'password'} placeholder="Enter your password" value={password} onChange={e => setPassword(e.target.value)} error={errors.password} autoComplete="current-password" className="pr-12" />
@@ -84,15 +95,6 @@ export const LoginPage: React.FC = () => {
             <Button type="submit" fullWidth loading={loading} size="lg">Login</Button>
             <div className="text-center">
               <button type="button" onClick={() => setShowReset(true)} className="text-[#1a73e8] text-sm font-medium hover:underline">Forgot Password?</button>
-            </div>
-            <div className="border-t border-gray-100 pt-4">
-              <p className="text-xs text-gray-400 text-center font-medium mb-2">Test Credentials</p>
-              <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
-                <div className="bg-gray-50 rounded-lg px-2 py-1.5"><div className="font-medium">Student</div><div>student1@mess4you.com</div><div>Student@123</div></div>
-                <div className="bg-gray-50 rounded-lg px-2 py-1.5"><div className="font-medium">Admin</div><div>admin@mess4you.com</div><div>Admin@123</div></div>
-                <div className="bg-gray-50 rounded-lg px-2 py-1.5"><div className="font-medium">Cook</div><div>cook@mess4you.com</div><div>Cook@123</div></div>
-                <div className="bg-gray-50 rounded-lg px-2 py-1.5"><div className="font-medium">Super Admin</div><div>superadmin@mess4you.com</div><div>Admin@123</div></div>
-              </div>
             </div>
           </form>
         ) : (

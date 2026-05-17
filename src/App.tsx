@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { AlertCircle, BookOpen } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { OfflineBanner } from './components/layout/OfflineBanner';
@@ -7,8 +8,64 @@ import { StudentDashboard } from './pages/student/StudentDashboard';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { CookDashboard } from './pages/cook/CookDashboard';
 
+const FirebaseConfigCheck: React.FC = () => {
+  const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+  const isConfigured = apiKey && projectId;
+
+  if (!isConfigured) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50 flex items-center justify-center px-5">
+        <div className="w-full max-w-md">
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center">
+              <AlertCircle size={32} className="text-red-600" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 text-center mb-2">Firebase Not Configured</h1>
+          <p className="text-gray-600 text-center mb-6">The app requires Firebase credentials to run. Follow these steps:</p>
+
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 space-y-4 mb-6">
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0"><span className="text-sm font-bold text-blue-600">1</span></div>
+              <div><p className="font-semibold text-gray-900">Copy `.env.example` to `.env`</p><p className="text-xs text-gray-500 mt-1">cp .env.example .env</p></div>
+            </div>
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0"><span className="text-sm font-bold text-blue-600">2</span></div>
+              <div><p className="font-semibold text-gray-900">Read the setup guide</p><p className="text-xs text-gray-500 mt-1">Open SETUP.md in project root for detailed Firebase setup instructions</p></div>
+            </div>
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0"><span className="text-sm font-bold text-blue-600">3</span></div>
+              <div><p className="font-semibold text-gray-900">Add your Firebase credentials</p><p className="text-xs text-gray-500 mt-1">Fill in `.env` with values from Firebase Console</p></div>
+            </div>
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0"><span className="text-sm font-bold text-blue-600">4</span></div>
+              <div><p className="font-semibold text-gray-900">Restart the dev server</p><p className="text-xs text-gray-500 mt-1">Stop and run: npm run dev</p></div>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex gap-3">
+            <BookOpen size={16} className="text-blue-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-blue-700"><strong>Quick Start:</strong> See SETUP.md for step-by-step Firebase configuration instructions.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+};
+
 const AppRoutes: React.FC = () => {
   const { userData, loading } = useAuth();
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   if (loading) {
     return (
@@ -21,7 +78,7 @@ const AppRoutes: React.FC = () => {
           </svg>
         </div>
         <div className="text-lg font-bold text-gray-900">Mess4you</div>
-        <div className="text-sm text-gray-400">Loading...</div>
+        <div className="text-sm text-gray-400">Initializing...</div>
       </div>
     );
   }
@@ -38,6 +95,9 @@ const AppRoutes: React.FC = () => {
 };
 
 function App() {
+  const configError = <FirebaseConfigCheck />;
+  if (configError) return configError;
+
   return (
     <AuthProvider>
       <ToastProvider>

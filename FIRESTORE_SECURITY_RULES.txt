@@ -1,0 +1,125 @@
+// Firestore Security Rules for Mess4you
+// Copy and paste this entire content into Firebase Console > Firestore > Rules tab
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users Collection
+    // Each user can read their own data, admins/superadmins can read all
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId ||
+                     hasRole(['admin', 'superadmin']);
+      allow create: if isAdmin() &&
+                       request.resource.data.role in ['student', 'cook', 'admin'];
+      allow update: if (request.auth.uid == userId &&
+                        !hasChangedRole()) ||
+                       isAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // Meals Collection
+    // Students can read/write their own meals, admins can do all
+    match /meals/{mealId} {
+      allow read: if isStudent() &&
+                     resource.data.studentId == request.auth.uid ||
+                     isAdmin();
+      allow create: if isStudent() || isAdmin();
+      allow update: if (isStudent() &&
+                        resource.data.studentId == request.auth.uid) ||
+                       isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Payments Collection
+    // Students can see their own payments, admins see all
+    match /payments/{paymentId} {
+      allow read: if isStudent() &&
+                     resource.data.studentId == request.auth.uid ||
+                     isAdmin();
+      allow create: if isStudent() || isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // Expenses Collection
+    // Only admin and superadmin can write, everyone can see
+    match /expenses/{expenseId} {
+      allow read: if isAuthenticatedUser();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Menu Collection
+    // Everyone can read, only admin can write
+    match /menu/{dayId} {
+      allow read: if isAuthenticatedUser();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Notifications Collection
+    // Users can read notifications meant for them, admin can write all
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticatedUser() &&
+                     (resource.data.targetType == 'all' ||
+                      request.auth.uid in resource.data.readBy ||
+                      resource.data.targetIds.size() == 0 ||
+                      request.auth.uid in resource.data.targetIds ||
+                      (resource.data.targetType == 'unpaid' && isStudent()));
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Settings Collection
+    // Everyone can read settings, only superadmin can write
+    match /settings/{settingId} {
+      allow read: if isAuthenticatedUser();
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    // Monthly Reports Collection
+    // Everyone can read, only admin can write
+    match /monthlyReports/{reportId} {
+      allow read: if isAuthenticatedUser();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Audit Logs Collection
+    // Everyone can read their own logs, admins see all
+    match /auditLogs/{logId} {
+      allow read: if isAuthenticatedUser() &&
+                     (resource.data.userId == request.auth.uid ||
+                      isAdmin());
+      allow create: if isAuthenticatedUser();
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // Helper Functions
+    function isAuthenticatedUser() {
+      return request.auth != null;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isStudent() {
+      return isAuthenticatedUser() && getUserRole() == 'student';
+    }
+
+    function isCook() {
+      return isAuthenticatedUser() && getUserRole() == 'cook';
+    }
+
+    function isAdmin() {
+      return isAuthenticatedUser() &&
+             getUserRole() in ['admin', 'superadmin'];
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticatedUser() && getUserRole() == 'superadmin';
+    }
+
+    function hasChangedRole() {
+      return request.resource.data.role != resource.data.role;
+    }
+  }
+}

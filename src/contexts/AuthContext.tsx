@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User as FirebaseUser, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { User as FirebaseUser, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase.config';
 import { User } from '../types';
-import { mockUsers } from '../utils/mockData';
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -12,6 +11,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  signUp: (email: string, password: string, userData: Omit<User, 'uid' | 'isActive' | 'createdAt' | 'hostelId'>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,21 +20,6 @@ export const useAuth = () => {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
-};
-
-const getMockUserByEmail = (email: string): User | undefined => {
-  return mockUsers.find(u => u.email === email);
-};
-
-const MOCK_PASSWORDS: Record<string, string> = {
-  'superadmin@mess4you.com': 'Admin@123',
-  'admin@mess4you.com': 'Admin@123',
-  'student1@mess4you.com': 'Student@123',
-  'student2@mess4you.com': 'Student@123',
-  'student3@mess4you.com': 'Student@123',
-  'student4@mess4you.com': 'Student@123',
-  'student5@mess4you.com': 'Student@123',
-  'cook@mess4you.com': 'Cook@123',
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -50,24 +35,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const docRef = doc(db, 'users', user.uid);
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
-            setUserData({ uid: user.uid, ...docSnap.data() } as User);
+            const data = docSnap.data();
+            setUserData({
+              uid: user.uid,
+              name: data.name || user.displayName || '',
+              email: data.email || user.email || '',
+              phone: data.phone || '',
+              role: data.role || 'student',
+              roomNumber: data.roomNumber || '',
+              vegPreference: data.vegPreference || 'veg',
+              isActive: data.isActive !== false,
+              createdAt: data.createdAt?.toDate?.() || new Date(),
+              hostelId: data.hostelId || 'default-hostel',
+              profilePhotoUrl: data.profilePhotoUrl,
+            } as User);
           }
-        } catch {
-          const mockSession = localStorage.getItem('mock_session');
-          if (mockSession) setUserData(JSON.parse(mockSession));
-        }
-      } else {
-        const mockSession = localStorage.getItem('mock_session');
-        if (mockSession) {
-          setUserData(JSON.parse(mockSession));
-        } else {
+        } catch (error) {
+          console.error('Error fetching user data:', error);
           setUserData(null);
         }
+      } else {
+        setUserData(null);
       }
-      setLoading(false);
-    }, () => {
-      const mockSession = localStorage.getItem('mock_session');
-      if (mockSession) setUserData(JSON.parse(mockSession));
       setLoading(false);
     });
 
@@ -75,37 +64,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch {
-      const mockUser = getMockUserByEmail(email);
-      const expectedPassword = MOCK_PASSWORDS[email];
-      if (mockUser && expectedPassword === password) {
-        localStorage.setItem('mock_session', JSON.stringify(mockUser));
-        setUserData(mockUser);
-      } else {
-        throw new Error('Invalid email or password');
-      }
-    }
+    await signInWithEmailAndPassword(auth, email, password);
   };
 
   const logout = async () => {
-    localStorage.removeItem('mock_session');
     setUserData(null);
-    try { await signOut(auth); } catch { /* ignore */ }
+    await signOut(auth);
   };
 
   const resetPassword = async (email: string) => {
-    try {
-      await sendPasswordResetEmail(auth, email);
-    } catch {
-      const mockUser = getMockUserByEmail(email);
-      if (!mockUser) throw new Error('Email not found');
-    }
+    await sendPasswordResetEmail(auth, email);
+  };
+
+  const signUp = async (email: string, password: string, userData: Omit<User, 'uid' | 'isActive' | 'createdAt' | 'hostelId'>) => {
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    const user = result.user;
+
+    await updateProfile(user, { displayName: userData.name });
+
+    await setDoc(doc(db, 'users', user.uid), {
+      ...userData,
+      email: user.email,
+      isActive: true,
+      createdAt: new Date(),
+      hostelId: 'default-hostel',
+    });
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, userData, loading, login, logout, resetPassword }}>
+    <AuthContext.Provider value={{ currentUser, userData, loading, login, logout, resetPassword, signUp }}>
       {children}
     </AuthContext.Provider>
   );
