@@ -4,12 +4,13 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDvaJBBdTHoOvWFnF36u7cs-TRTuHx_k-4",
+  authDomain: "mess4you-135d8.firebaseapp.com",
+  databaseURL: "https://mess4you-135d8-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "mess4you-135d8",
+  storageBucket: "mess4you-135d8.firebasestorage.app",
+  messagingSenderId: "463182028986",
+  appId: "1:463182028986:web:8c29aeb7e268f42b306283"
 };
 
 const app = initializeApp(firebaseConfig);
