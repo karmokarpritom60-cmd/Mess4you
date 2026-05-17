@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Copy, Upload, Check, X, QrCode } from 'lucide-react';
+import React, { useState } from 'react';
+import { Copy, Check, QrCode } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -12,10 +12,7 @@ export const PaymentsTab: React.FC = () => {
   const { userData } = useAuth();
   const { showToast } = useToast();
   const [showPayModal, setShowPayModal] = useState(false);
-  const [screenshot, setScreenshot] = useState<File | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const myPayments = mockPayments.filter(p => p.studentId === userData?.uid);
   const totalBill = 3200;
@@ -27,21 +24,6 @@ export const PaymentsTab: React.FC = () => {
   const handleCopyUpi = async () => {
     const ok = await copyToClipboard(mockSettings.upiId);
     if (ok) { setCopied(true); setTimeout(() => setCopied(false), 2000); showToast('UPI ID copied!', 'success'); }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) { if (!file.type.startsWith('image/')) { showToast('Please select an image file', 'error'); return; } setScreenshot(file); }
-  };
-
-  const handleSubmit = async () => {
-    if (!screenshot) { showToast('Please upload a payment screenshot', 'warning'); return; }
-    setSubmitting(true);
-    await new Promise(r => setTimeout(r, 1200));
-    setSubmitting(false);
-    showToast('Payment proof submitted! Awaiting verification.', 'success');
-    setShowPayModal(false);
-    setScreenshot(null);
   };
 
   const statusBadge = (status: string) => {
@@ -98,14 +80,7 @@ export const PaymentsTab: React.FC = () => {
             </button>
           </div>
           <div className="bg-gray-50 rounded-xl px-4 py-3"><div className="text-xs text-gray-500">Phone / UPI</div><div className="text-sm font-semibold text-gray-900">{mockSettings.paymentPhone}</div></div>
-          <div>
-            <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-            <button onClick={() => fileRef.current?.click()} className="w-full border-2 border-dashed border-gray-200 rounded-xl py-4 flex flex-col items-center gap-2 hover:border-[#1a73e8]">
-              <Upload size={20} className="text-gray-400" /><span className="text-sm text-gray-500 font-medium">{screenshot ? screenshot.name : 'Upload Payment Screenshot'}</span><span className="text-xs text-gray-400">Tap to select image</span>
-            </button>
-            {screenshot && <div className="flex items-center justify-between bg-green-50 rounded-xl px-4 py-2 mt-2"><span className="text-xs text-green-700 font-medium truncate">{screenshot.name}</span><button onClick={() => setScreenshot(null)}><X size={14} className="text-green-600" /></button></div>}
-          </div>
-          <Button variant="success" fullWidth loading={submitting} onClick={handleSubmit}>Submit Proof</Button>
+          <Button variant="secondary" fullWidth onClick={() => setShowPayModal(false)}>Close</Button>
         </div>
       </Modal>
     </div>
